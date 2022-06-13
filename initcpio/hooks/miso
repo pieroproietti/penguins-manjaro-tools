@@ -8,32 +8,32 @@ _mnt_dmsnapshot() {
     local ro_dev ro_dev_size rw_dev
 
     ro_dev=$(losetup --find --show --read-only "${img}")
-    echo ${ro_dev} >> /run/miso/used_block_devices
+    echo ${ro_dev} >> /run/pe_miso/used_block_devices
     ro_dev_size=$(blockdev --getsz ${ro_dev})
 
     if [[ "${cow_persistent}" == "P" ]]; then
-        if [[ -f "/run/miso/cowspace/${cow_directory}/${img_name}.cow" ]]; then
-            msg ":: Found '/run/miso/cowspace/${cow_directory}/${img_name}.cow', using as persistent."
+        if [[ -f "/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow" ]]; then
+            msg ":: Found '/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow', using as persistent."
         else
-            msg ":: Creating '/run/miso/cowspace/${cow_directory}/${img_name}.cow' as persistent."
-            truncate -s "${cow_spacesize}" "/run/miso/cowspace/${cow_directory}/${img_name}.cow"
+            msg ":: Creating '/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow' as persistent."
+            truncate -s "${cow_spacesize}" "/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow"
         fi
     else
-        if [[ -f "/run/miso/cowspace/${cow_directory}/${img_name}.cow" ]]; then
-            msg ":: Found '/run/miso/cowspace/${cow_directory}/${img_name}.cow' but non-persistent requested, removing."
-            rm -f "/run/miso/cowspace/${cow_directory}/${img_name}.cow"
+        if [[ -f "/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow" ]]; then
+            msg ":: Found '/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow' but non-persistent requested, removing."
+            rm -f "/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow"
         fi
-        msg ":: Creating '/run/miso/cowspace/${cow_directory}/${img_name}.cow' as non-persistent."
-        truncate -s "${cow_spacesize}" "/run/miso/cowspace/${cow_directory}/${img_name}.cow"
+        msg ":: Creating '/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow' as non-persistent."
+        truncate -s "${cow_spacesize}" "/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow"
     fi
 
-    rw_dev=$(losetup --find --show "/run/miso/cowspace/${cow_directory}/${img_name}.cow")
-    echo ${rw_dev} >> /run/miso/used_block_devices
+    rw_dev=$(losetup --find --show "/run/pe_miso/cowspace/${cow_directory}/${img_name}.cow")
+    echo ${rw_dev} >> /run/pe_miso/used_block_devices
 
     dmsetup create ${dm_snap_name} --table "0 ${ro_dev_size} snapshot ${ro_dev} ${rw_dev} ${cow_persistent} ${cow_chunksize}"
 
     _mnt_dev "/dev/mapper/${dm_snap_name}" "${mnt}" "-w" "defaults"
-    echo $(readlink -f /dev/mapper/${dm_snap_name}) >> /run/miso/used_block_devices
+    echo $(readlink -f /dev/mapper/${dm_snap_name}) >> /run/pe_miso/used_block_devices
 }
 
 # args: source, newroot, mountpoint
@@ -41,8 +41,8 @@ _mnt_overlayfs() {
     local src="${1}"
     local newroot="${2}"
     local mnt="${3}"
-    local work_dir="/run/miso/overlay_root/work"
-    local upper_dir="/run/miso/overlay_root/upper"
+    local work_dir="/run/pe_miso/overlay_root/work"
+    local upper_dir="/run/pe_miso/overlay_root/upper"
 
     mkdir -p "${upper_dir}" "${work_dir}"
 
@@ -55,19 +55,19 @@ _mnt_sfs() {
     local mnt="${2}"
     local img_fullname="${img##*/}"
     local sfs_dev
-    local oper=$( [[ -n "${ip}" && -n "${miso_http_srv}" ]] && echo "mv" || echo "cp" )
+    local oper=$( [[ -n "${ip}" && -n "${pe_miso_http_srv}" ]] && echo "mv" || echo "cp" )
 
     if [[ "${copytoram}" == "y" ]]; then
         msg -n ":: Copying squashfs image to RAM..."
-        if ! "${oper}" "${img}" "/run/miso/copytoram/${img_fullname}" ; then
-            echo "ERROR: while copy '${img}' to '/run/miso/copytoram/${img_fullname}'"
+        if ! "${oper}" "${img}" "/run/pe_miso/copytoram/${img_fullname}" ; then
+            echo "ERROR: while copy '${img}' to '/run/pe_miso/copytoram/${img_fullname}'"
             launch_interactive_shell
         fi
-        img="/run/miso/copytoram/${img_fullname}"
+        img="/run/pe_miso/copytoram/${img_fullname}"
         msg "done."
     fi
     sfs_dev=$(losetup --find --show --read-only "${img}")
-    echo ${sfs_dev} >> /run/miso/used_block_devices
+    echo ${sfs_dev} >> /run/pe_miso/used_block_devices
     _mnt_dev "${sfs_dev}" "${mnt}" "-r" "defaults"
 }
 
@@ -101,7 +101,7 @@ _mnt_dev() {
 
 _verify_checksum() {
     local _status
-    cd "/run/miso/bootmnt/${misobasedir}/${arch}"
+    cd "/run/pe_miso/bootmnt/${pe_misobasedir}/${arch}"
     md5sum -c $1.md5 > /tmp/checksum.log 2>&1
     _status=$?
     cd "${OLDPWD}"
@@ -110,7 +110,7 @@ _verify_checksum() {
 
 _verify_signature() {
     local _status
-    cd "/run/miso/bootmnt/${misobasedir}/${arch}"
+    cd "/run/pe_miso/bootmnt/${pe_misobasedir}/${arch}"
     gpg --homedir /gpg --status-fd 1 --verify $1.sfs.sig 2>/dev/null | grep -qE '^\[GNUPG:\] GOODSIG'
     _status=$?
     cd "${OLDPWD}"
@@ -161,11 +161,11 @@ _find_dev_by_path () {
 run_hook() {
     [[ -z "${arch}" ]] && arch="$(uname -m)"
     [[ -z "${copytoram_size}" ]] && copytoram_size="75%"
-    [[ -z "${misobasedir}" ]] && misobasedir="manjaro"
+    [[ -z "${pe_misobasedir}" ]] && pe_misobasedir="manjaro"
 
     [[ -z "${dm_snap_prefix}" ]] && dm_snap_prefix="manjaro"
-    misodevice=$(_find_dev_by_path /.miso)
-    [[ -z "${misodevice}" ]] && misodevice="/dev/disk/by-label/${misolabel}"
+    pe_misodevice=$(_find_dev_by_path /.pe_miso)
+    [[ -z "${pe_misodevice}" ]] && pe_misodevice="/dev/disk/by-label/${pe_misolabel}"
     [[ -z "${cow_spacesize}" ]] && cow_spacesize="256M"
     [[ -z "${overlay_root_size}" ]] && overlay_root_size="75%"
 
@@ -179,30 +179,30 @@ run_hook() {
     fi
 
     [[ -z "${cow_flags}" ]] && cow_flags="defaults"
-    [[ -z "${cow_directory}" ]] && cow_directory="persistent_${misolabel}/${arch}"
+    [[ -z "${cow_directory}" ]] && cow_directory="persistent_${pe_misolabel}/${arch}"
     [[ -z "${cow_chunksize}" ]] && cow_chunksize="8"
 
-    # set mount handler for miso
-    mount_handler="miso_mount_handler"
+    # set mount handler for pe_miso
+    mount_handler="pe_miso_mount_handler"
 }
 
 # This function is called normally from init script, but it can be called
 # as chain from other mount handlers.
 # args: /path/to/newroot
-miso_mount_handler() {
+pe_miso_mount_handler() {
     local newroot="${1}"
 
-    if ! mountpoint -q "/run/miso/bootmnt"; then
-        _mnt_dev "${misodevice}" "/run/miso/bootmnt" "-r" "defaults"
+    if ! mountpoint -q "/run/pe_miso/bootmnt"; then
+        _mnt_dev "${pe_misodevice}" "/run/pe_miso/bootmnt" "-r" "defaults"
         if [[ "${copytoram}" != "y" ]]; then
-            echo $(readlink -f ${misodevice}) >> /run/miso/used_block_devices
+            echo $(readlink -f ${pe_misodevice}) >> /run/pe_miso/used_block_devices
         fi
     fi
 
     if [[ "${checksum}" == "y" ]]; then
         for fs in rootfs desktopfs mhwdfs livefs; do
-            if [[ -f "/run/miso/bootmnt/${misobasedir}/${arch}/${fs}.sfs" ]]; then
-                if [[ -f "/run/miso/bootmnt/${misobasedir}/${arch}/${fs}.md5" ]]; then
+            if [[ -f "/run/pe_miso/bootmnt/${pe_misobasedir}/${arch}/${fs}.sfs" ]]; then
+                if [[ -f "/run/pe_miso/bootmnt/${pe_misobasedir}/${arch}/${fs}.md5" ]]; then
                     msg -n ":: Self-test requested, please wait..."
                     if _verify_checksum "${fs}"; then
                         msg "done. Checksum is OK, continue booting."
@@ -212,7 +212,7 @@ miso_mount_handler() {
                         launch_interactive_shell
                     fi
                 else
-                    echo "ERROR: checksum=y option specified but ${misobasedir}/${arch}/${fs}.md5 not found"
+                    echo "ERROR: checksum=y option specified but ${pe_misobasedir}/${arch}/${fs}.md5 not found"
                     launch_interactive_shell
                 fi
             fi
@@ -221,8 +221,8 @@ miso_mount_handler() {
 
     if [[ "${verify}" == "y" ]]; then
         for fs in rootfs desktopfs mhwdfs livefs; do
-            if [[ -f "/run/miso/bootmnt/${misobasedir}/${arch}/${fs}.sfs" ]]; then
-                if [[ -f "/run/miso/bootmnt/${misobasedir}/${arch}/${fs}.sfs.sig" ]]; then
+            if [[ -f "/run/pe_miso/bootmnt/${pe_misobasedir}/${arch}/${fs}.sfs" ]]; then
+                if [[ -f "/run/pe_miso/bootmnt/${pe_misobasedir}/${arch}/${fs}.sfs.sig" ]]; then
                     msg -n ":: Signature verification requested, please wait..."
                     if _verify_signature "${fs}"; then
                         msg "done. Signature is OK, continue booting."
@@ -231,7 +231,7 @@ miso_mount_handler() {
                         launch_interactive_shell
                     fi
                 else
-                    echo "ERROR: verify=y option specified but ${misobasedir}/${arch}/${fs}.sfs.sig not found"
+                    echo "ERROR: verify=y option specified but ${pe_misobasedir}/${arch}/${fs}.sfs.sig not found"
                     launch_interactive_shell
                 fi
             fi
@@ -239,28 +239,28 @@ miso_mount_handler() {
     fi
 
     if [[ "${copytoram}" == "y" ]]; then
-        msg ":: Mounting /run/miso/copytoram (tmpfs) filesystem, size=${copytoram_size}"
-        mkdir -p /run/miso/copytoram
-        mount -t tmpfs -o "size=${copytoram_size}",mode=0755 copytoram /run/miso/copytoram
+        msg ":: Mounting /run/pe_miso/copytoram (tmpfs) filesystem, size=${copytoram_size}"
+        mkdir -p /run/pe_miso/copytoram
+        mount -t tmpfs -o "size=${copytoram_size}",mode=0755 copytoram /run/pe_miso/copytoram
     fi
 
     if [[ -n "${cow_device}" ]]; then
-        _mnt_dev "${cow_device}" "/run/miso/cowspace" "-r" "${cow_flags}"
-        echo $(readlink -f ${cow_device}) >> /run/miso/used_block_devices
-        mount -o remount,rw "/run/miso/cowspace"
+        _mnt_dev "${cow_device}" "/run/pe_miso/cowspace" "-r" "${cow_flags}"
+        echo $(readlink -f ${cow_device}) >> /run/pe_miso/used_block_devices
+        mount -o remount,rw "/run/pe_miso/cowspace"
     else
-        msg ":: Mounting /run/miso/cowspace (tmpfs) filesystem, size=${cow_spacesize}..."
-        mkdir -p /run/miso/cowspace
-        mount -t tmpfs -o "size=${cow_spacesize}",mode=0755 cowspace /run/miso/cowspace
+        msg ":: Mounting /run/pe_miso/cowspace (tmpfs) filesystem, size=${cow_spacesize}..."
+        mkdir -p /run/pe_miso/cowspace
+        mount -t tmpfs -o "size=${cow_spacesize}",mode=0755 cowspace /run/pe_miso/cowspace
     fi
-    mkdir -p -m 0700 "/run/miso/cowspace/${cow_directory}"
+    mkdir -p -m 0700 "/run/pe_miso/cowspace/${cow_directory}"
 
     msg -n ":: Mounting overlay root (tmpfs) filesystem, size=${overlay_root_size}..."
-    mkdir -p /run/miso/overlay_root
-    mount -t tmpfs -o "size=${overlay_root_size}",mode=0755 overlay_root /run/miso/overlay_root
+    mkdir -p /run/pe_miso/overlay_root
+    mount -t tmpfs -o "size=${overlay_root_size}",mode=0755 overlay_root /run/pe_miso/overlay_root
 
-    local src="/run/miso/bootmnt/${misobasedir}/${arch}"
-    local dest_sfs="/run/miso/sfs" dest_img="/run/miso/img"
+    local src="/run/pe_miso/bootmnt/${pe_misobasedir}/${arch}"
+    local dest_sfs="/run/pe_miso/sfs" dest_img="/run/pe_miso/img"
     local lower_dir
 
     for sfs in livefs mhwdfs desktopfs rootfs; do
@@ -279,9 +279,9 @@ miso_mount_handler() {
     _mnt_overlayfs "${lower_dir}" "${newroot}" "/"
 
     if [[ "${copytoram}" == "y" ]]; then
-        umount -d /run/miso/bootmnt
-        mkdir -p /run/miso/bootmnt/${misobasedir}/${arch}
-        mount -o bind /run/miso/copytoram /run/miso/bootmnt/${misobasedir}/${arch}
+        umount -d /run/pe_miso/bootmnt
+        mkdir -p /run/pe_miso/bootmnt/${pe_misobasedir}/${arch}
+        mount -o bind /run/pe_miso/copytoram /run/pe_miso/bootmnt/${pe_misobasedir}/${arch}
     fi
 }
 

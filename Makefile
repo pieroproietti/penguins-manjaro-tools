@@ -73,7 +73,7 @@ CPIOINST = \
 	$(wildcard initcpio/install/*)
 
 CPIO = \
-	initcpio/script/miso_shutdown
+	initcpio/script/pe_miso_shutdown
 
 MAN_XML = \
 	buildpkg.xml \

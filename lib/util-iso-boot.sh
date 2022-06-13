@@ -11,9 +11,9 @@
 
 prepare_initcpio(){
     msg2 "Copying initcpio ..."
-    cp /etc/initcpio/hooks/miso* $1/etc/initcpio/hooks
-    cp /etc/initcpio/install/miso* $1/etc/initcpio/install
-    cp /etc/initcpio/miso_shutdown $1/etc/initcpio
+    cp /etc/initcpio/hooks/pe_miso* $1/etc/initcpio/hooks
+    cp /etc/initcpio/install/pe_miso* $1/etc/initcpio/install
+    cp /etc/initcpio/pe_miso_shutdown $1/etc/initcpio
 }
 
 prepare_initramfs(){
@@ -23,7 +23,7 @@ prepare_initramfs(){
         su ${OWNER} -c "gpg --export ${gpgkey} >${USERCONFDIR}/gpgkey"
         exec 17<>${USERCONFDIR}/gpgkey
     fi
-    MISO_GNUPG_FD=${gpgkey:+17} chroot-run $1 \
+    PE_MISO_GNUPG_FD=${gpgkey:+17} chroot-run $1 \
         /usr/bin/mkinitcpio -k ${_kernver} \
         -c /etc/mkinitcpio-${iso_name}.conf \
         -g /boot/initramfs.img
@@ -92,7 +92,7 @@ prepare_grub(){
     local size=4M mnt="${mnt_dir}/efiboot" efi_img="$2/efi.img"
     msg2 "Creating fat image of %s ..." "${size}"
     truncate -s ${size} "${efi_img}"
-    mkfs.fat -n MISO_EFI "${efi_img}" &>/dev/null
+    mkfs.fat -n PE_MISO_EFI "${efi_img}" &>/dev/null
     prepare_dir "${mnt}"
     mount_img "${efi_img}" "${mnt}"
     prepare_dir ${mnt}/efi/boot

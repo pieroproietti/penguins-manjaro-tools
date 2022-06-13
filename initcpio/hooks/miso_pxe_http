@@ -1,29 +1,29 @@
 # vim: set ft=sh:
 
 run_hook() {
-    if [[ -n "${ip}" && -n "${miso_http_srv}" ]]; then
+    if [[ -n "${ip}" && -n "${pe_miso_http_srv}" ]]; then
 
         # booting with http is always copy-to-ram, so set here to make sure
         # addresses are flushed and interface is set down
         copytoram="y"
 
-        miso_http_srv=$(eval echo ${miso_http_srv})
-        [[ -z "${miso_http_spc}" ]] && miso_http_spc="75%"
+        pe_miso_http_srv=$(eval echo ${pe_miso_http_srv})
+        [[ -z "${pe_miso_http_spc}" ]] && pe_miso_http_spc="75%"
 
-        mount_handler="miso_pxe_http_mount_handler"
+        mount_handler="pe_miso_pxe_http_mount_handler"
     fi
 }
 
 # Fetch a file with CURL
 #
 # $1 URL
-# $2 Destination directory inside httpspace/${misobasedir}
+# $2 Destination directory inside httpspace/${pe_misobasedir}
 _curl_get() {
     local _url="${1}"
     local _dst="${2}"
 
     msg ":: Downloading '${_url}'"
-    if ! curl -L -f -o "/run/miso/httpspace/${misobasedir}${_dst}/${_url##*/}" --create-dirs "${_url}"; then
+    if ! curl -L -f -o "/run/pe_miso/httpspace/${pe_misobasedir}${_dst}/${_url##*/}" --create-dirs "${_url}"; then
         echo "ERROR: Downloading '${_url}'"
         echo "   Falling back to interactive prompt"
         echo "   You can try to fix the problem manually, log out when you are finished"
@@ -31,14 +31,14 @@ _curl_get() {
     fi
 }
 
-miso_pxe_http_mount_handler () {
+pe_miso_pxe_http_mount_handler () {
     newroot="${1}"
 
-    msg ":: Mounting /run/miso/httpspace (tmpfs) filesystem, size='${miso_http_spc}'"
-    mkdir -p "/run/miso/httpspace"
-    mount -t tmpfs -o size="${miso_http_spc}",mode=0755 httpspace "/run/miso/httpspace"
+    msg ":: Mounting /run/pe_miso/httpspace (tmpfs) filesystem, size='${pe_miso_http_spc}'"
+    mkdir -p "/run/pe_miso/httpspace"
+    mount -t tmpfs -o size="${pe_miso_http_spc}",mode=0755 httpspace "/run/pe_miso/httpspace"
 
-    local _src=${miso_http_srv}${misobasedir}/${arch}
+    local _src=${pe_miso_http_srv}${pe_misobasedir}/${arch}
 
     for sfs in livefs mhwdfs desktopfs rootfs; do
         if [[ ! -z "$( curl -L -s --head "${_src}/${sfs}.sfs" | grep "OK" )" ]]; then
@@ -52,8 +52,8 @@ miso_pxe_http_mount_handler () {
             fi
         fi
     done
-    mkdir -p "/run/miso/bootmnt"
-    mount -o bind /run/miso/httpspace /run/miso/bootmnt
+    mkdir -p "/run/pe_miso/bootmnt"
+    mount -o bind /run/pe_miso/httpspace /run/pe_miso/bootmnt
 
-    miso_mount_handler ${newroot}
+    pe_miso_mount_handler ${newroot}
 }

@@ -195,7 +195,7 @@ assemble_iso(){
 # Build ISO
 make_iso() {
     msg "Start [Build ISO]"
-    touch "${iso_root}/.miso"
+    touch "${iso_root}/.pe_miso"
     for sfs_dir in $(find "${work_dir}" -maxdepth 1 -type d); do
         if [[ "${sfs_dir}" != "${work_dir}" ]]; then
             if [[ -e "${sfs_dir}"/etc/pacman.d/gnupg ]]; then
@@ -477,7 +477,7 @@ make_image_boot() {
 }
 
 configure_grub(){
-    local default_args="misobasedir=${iso_name} misolabel=${iso_label}" \
+    local default_args="pe_misobasedir=${iso_name} pe_misolabel=${iso_label}" \
         boot_args=('quiet' 'systemd.show_status=1' ${custom_boot_args} ${apparmor_boot_args})
 
     sed -e "s|@DIST_NAME@|${dist_name}|g" \
